@@ -75,6 +75,10 @@ const generateMockProducts = (): Product[] => {
     description: 'Mô tả sản phẩm mẫu...',
     category: MOCK_CATEGORIES[i % MOCK_CATEGORIES.length],
     status: i % 5 === 0 ? 'out_of_stock' : 'active',
+    variants: i % 3 === 0 ? [] : [
+      { id: `v1-${i}`, name: 'Màu Đỏ, Size M', sku: `SKU-${i + 1}-RED-M`, price: 150000 + (i * 10000), stock: Math.floor(Math.random() * 50), image: `https://loremflickr.com/100/100/fashion?random=${i}1` },
+      { id: `v2-${i}`, name: 'Màu Xanh, Size L', sku: `SKU-${i + 1}-BLU-L`, price: 150000 + (i * 10000) + 20000, stock: Math.floor(Math.random() * 50), image: `https://loremflickr.com/100/100/fashion?random=${i}2` }
+    ],
     weight: 200,
     length: 10,
     width: 10,

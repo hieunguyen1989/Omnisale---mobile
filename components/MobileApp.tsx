@@ -5,7 +5,7 @@ import {
   LogOut, Bell, DollarSign, Wallet, Search, ArrowDownRight, ArrowUpRight, Filter, Plus, 
   History, ArrowDown, ArrowUp, Check, X, AlertCircle, MessageCircle, Edit3, Trash2, Camera, 
   ChevronRight, Truck, Menu, QrCode, Calendar, Save, CreditCard, Clock, ChevronLeft, Send, Star, Phone,
-  PieChart, TrendingUp, BarChart3, Image as ImageIcon, Paperclip, ChevronDown, ChevronUp, CheckCircle
+  PieChart, TrendingUp, BarChart3, Image as ImageIcon, Paperclip, ChevronDown, ChevronUp, CheckCircle, PackageX
 } from 'lucide-react';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { MOCK_ORDERS, MOCK_PRODUCTS, MOCK_INVOICES, MOCK_LEDGER_RECORDS, MOCK_CONVERSATIONS, MOCK_WAREHOUSES } from '../services/mockData';
@@ -857,10 +857,19 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
   const ProductForm = () => {
     // Mock form state initialization
     const initialData = editingProduct === 'new' ? {
-        id: '', name: '', sku: '', price: 0, stock: 0, importPrice: 0, image: ''
-    } : editingProduct as Product;
+        id: '', name: '', sku: '', price: 0, stock: 0, importPrice: 0, image: '', variants: []
+    } : { ...editingProduct as Product, variants: (editingProduct as Product).variants?.length ? (editingProduct as Product).variants : [
+        { id: 'v1', name: 'Màu Đỏ, Size M', sku: `${(editingProduct as Product).sku}-RED-M`, price: (editingProduct as Product).price, stock: 10, image: 'https://loremflickr.com/100/100/fashion?random=11' },
+        { id: 'v2', name: 'Màu Xanh, Size L', sku: `${(editingProduct as Product).sku}-BLU-L`, price: (editingProduct as Product).price + 20000, stock: 5, image: 'https://loremflickr.com/100/100/fashion?random=12' }
+    ] };
 
     const [formData, setFormData] = useState(initialData);
+
+    const handleVariantStockOut = (variantId: string) => {
+        const newVariants = formData.variants?.map(v => v.id === variantId ? { ...v, stock: 0 } : v);
+        const totalStock = newVariants?.reduce((acc, v) => acc + v.stock, 0) || 0;
+        setFormData({ ...formData, variants: newVariants, stock: totalStock });
+    };
 
     return (
         <div className="fixed inset-0 z-[60] bg-slate-50 flex flex-col animate-fade-in">
@@ -944,12 +953,104 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
                         value={formData.stock}
                         onChange={(e) => setFormData({...formData, stock: Number(e.target.value)})}
                         className="w-full border-b border-slate-200 py-2 focus:border-indigo-500 outline-none font-bold text-slate-800 text-lg"
+                        readOnly={formData.variants && formData.variants.length > 0}
                     />
+                    {formData.variants && formData.variants.length > 0 && <p className="text-xs text-slate-400 mt-1">Tổng tồn kho tự động tính từ các biến thể</p>}
+                </div>
+
+                <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm space-y-4">
+                    <div className="flex justify-between items-center">
+                        <label className="block text-xs font-bold text-slate-500 uppercase">Biến thể sản phẩm</label>
+                        <button className="text-xs text-indigo-600 font-bold flex items-center gap-1">
+                            <Plus size={14} /> Thêm biến thể
+                        </button>
+                    </div>
+
+                    {!formData.variants || formData.variants.length === 0 ? (
+                        <div className="text-center py-4 text-sm text-slate-500 border border-dashed border-slate-200 rounded-lg bg-slate-50">
+                            Sản phẩm này chưa có biến thể nào
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {formData.variants.map((variant, index) => (
+                                <div key={variant.id} className="p-3 border border-slate-100 rounded-lg bg-slate-50 flex flex-col gap-2 relative">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex gap-2">
+                                            <div className="w-10 h-10 rounded overflow-hidden bg-white shrink-0 border border-slate-200">
+                                                {variant.image ? (
+                                                    <img src={variant.image} alt={variant.name} className="w-full h-full object-cover" />
+                                                ) : (
+                                                    <div className="w-full h-full flex items-center justify-center text-slate-400">
+                                                        <ImageIcon size={16} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="font-bold text-sm text-slate-800">{variant.name}</span>
+                                                <span className="text-xs text-slate-500 font-mono mt-0.5">{variant.sku}</span>
+                                            </div>
+                                        </div>
+                                        <div className="flex flex-col items-end gap-1">
+                                            <button 
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    handleVariantStockOut(variant.id);
+                                                }}
+                                                className="text-[10px] bg-red-100 text-red-600 px-2 py-1 rounded-full font-bold flex items-center gap-1 hover:bg-red-200 active:scale-95 transition-all"
+                                                title="Sản phẩm hết hàng"
+                                            >
+                                                <PackageX size={12} /> Hết hàng
+                                            </button>
+                                        </div>
+                                    </div>
+                                    <div className="grid grid-cols-2 gap-3 mt-2 pt-2 border-t border-slate-200/60">
+                                        <div>
+                                            <label className="block text-[10px] text-slate-500 mb-1">Giá bán</label>
+                                            <div className="flex items-center gap-1">
+                                                <input 
+                                                    type="number"
+                                                    className="w-full text-sm font-bold text-slate-800 bg-transparent border-b border-slate-300 focus:border-indigo-500 outline-none"
+                                                    value={variant.price}
+                                                    onChange={(e) => {
+                                                        const newVariants = formData.variants?.map(v => v.id === variant.id ? { ...v, price: Number(e.target.value) } : v);
+                                                        setFormData({ ...formData, variants: newVariants });
+                                                    }}
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-[10px] text-slate-500 mb-1">Tồn kho</label>
+                                            <div className="text-sm font-bold text-slate-800 focus-within:text-indigo-600 flex items-center gap-1">
+                                                <input 
+                                                    type="number"
+                                                    className="w-full bg-transparent border-b border-slate-300 focus:border-indigo-500 outline-none"
+                                                    value={variant.stock}
+                                                    onChange={(e) => {
+                                                        const newStock = Number(e.target.value);
+                                                        const newVariants = formData.variants?.map(v => v.id === variant.id ? { ...v, stock: newStock } : v);
+                                                        const totalStock = newVariants?.reduce((acc, v) => acc + v.stock, 0) || 0;
+                                                        setFormData({ ...formData, variants: newVariants, stock: totalStock });
+                                                    }}
+                                                />
+                                            </div>
+                                            <div className="text-[10px] text-slate-400 mt-1 flex flex-col gap-0.5">
+                                               <span>Kho Q1: {Math.floor(variant.stock * 0.7)}</span>
+                                               <span>Kho Q3: {variant.stock - Math.floor(variant.stock * 0.7)}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
                 </div>
 
                 {editingProduct !== 'new' && (
-                    <button className="w-full py-3 text-red-600 font-bold bg-red-50 rounded-xl flex items-center justify-center gap-2">
-                        <Trash2 size={18} /> Xóa sản phẩm
+                    <button 
+                        onClick={() => { alert('Đã cập nhật sản phẩm!'); setEditingProduct(null); }}
+                        className="w-full py-3 text-white font-bold bg-indigo-600 rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition-transform shadow-sm"
+                    >
+                        <Save size={18} /> Cập nhật sản phẩm
                     </button>
                 )}
             </div>
@@ -1390,15 +1491,23 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
             
             {/* Search Bar & Select All */}
             <div className="flex flex-col gap-3">
-                <div className="relative">
-                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                    <input 
-                        type="text" 
-                        placeholder="Nhập mã đơn, mã vận đơn (tối thiểu 3 ký tự)..."
-                        value={orderSearch}
-                        onChange={(e) => setOrderSearch(e.target.value)}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-4 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all outline-none"
-                    />
+                <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input 
+                            type="text" 
+                            placeholder="Mã đơn, MVĐ..."
+                            value={orderSearch}
+                            onChange={(e) => setOrderSearch(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all outline-none"
+                        />
+                    </div>
+                    <button 
+                        onClick={() => setShippingFilter(shippingFilter === 'Hỏa tốc' ? 'all' : 'Hỏa tốc')}
+                        className={`shrink-0 p-2.5 rounded-xl border transition-colors ${shippingFilter === 'Hỏa tốc' ? 'bg-red-50 border-red-200 text-red-600' : 'bg-slate-50 border-slate-200 text-slate-500'}`}
+                    >
+                        <Zap size={18} className={shippingFilter === 'Hỏa tốc' ? 'fill-red-500 text-red-500' : ''} />
+                    </button>
                 </div>
                 {/* Batch Action Bar */}
                 <div className="flex justify-between items-center bg-indigo-50/50 p-3 rounded-lg border border-indigo-100 -mx-1">
@@ -1542,7 +1651,7 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
                             </span>
                          )}
                      </div>
-                     <button className="flex-1 py-2.5 rounded-lg border border-indigo-600 text-indigo-600 text-sm font-bold flex items-center justify-center gap-2 active:bg-indigo-50 transition-colors">
+                     <button className="flex-1 py-2.5 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-700 text-sm font-bold flex items-center justify-center gap-2 hover:bg-indigo-100 active:scale-95 transition-all">
                         <CheckCircle size={18} />
                         Xác nhận
                      </button>
@@ -1783,7 +1892,14 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
                    </div>
                    <div className="p-3 flex-1 flex flex-col">
                       <div className="text-sm font-medium text-slate-800 line-clamp-2 mb-1">{product.name}</div>
-                      <div className="text-xs text-slate-400 mb-2">SKU: {product.sku.split('-')[1]}</div>
+                      <div className="flex justify-between items-center mb-2">
+                         <div className="text-xs text-slate-400">SKU: {product.sku.split('-')[1]}</div>
+                         {product.variants && product.variants.length > 0 && (
+                            <div className="text-[10px] text-indigo-600 font-bold bg-indigo-50 border border-indigo-100 px-1.5 py-0.5 rounded">
+                               {product.variants.length} biến thể
+                            </div>
+                         )}
+                      </div>
                       <div className="mt-auto flex justify-between items-end">
                          <span className="font-bold text-indigo-600">{new Intl.NumberFormat('vi-VN', { notation: "compact" }).format(product.price)}</span>
                          <span className="text-xs text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">Kho: {product.stock}</span>

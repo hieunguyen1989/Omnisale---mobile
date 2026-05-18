@@ -1,5 +1,6 @@
 {
-  "name": "Remix: OmniSales - Cuahang.app",
+  "name": "Mobile - OmniSales",
   "description": "A comprehensive e-commerce management dashboard integrating Facebook, WooCommerce, Alibaba, Amazon, and Etsy. Features AI-powered inventory control, order synchronization, and sales analytics.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }
