@@ -1425,9 +1425,11 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
   );
 
   const OrdersView = () => {
-    // Initialize filter from shared state or default
+    const [showBatchModal, setShowBatchModal] = useState(false);
+    const [updateTrigger, forceUpdate] = useReducer(x => x + 1, 0);
     const [statusFilter, setStatusFilter] = useState(orderFilter);
     const [shippingFilter, setShippingFilter] = useState('all');
+    const [carrierFilter, setCarrierFilter] = useState('all');
     const [platformFilter, setPlatformFilter] = useState('all');
     const [shopFilter, setShopFilter] = useState('all');
     const [isCompact, setIsCompact] = useState(false);
@@ -1446,6 +1448,7 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
             // Status and Shipping filter
             const matchStatus = statusFilter === 'all' || o.status === statusFilter;
             const matchShipping = shippingFilter === 'all' || o.shippingMethod === shippingFilter;
+            const matchCarrier = carrierFilter === 'all' || o.shippingCarrier === carrierFilter;
             const matchPlatform = platformFilter === 'all' || o.platform === platformFilter;
             const matchShop = shopFilter === 'all' || o.shopId === shopFilter;
             
@@ -1458,9 +1461,9 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
                                 false;
             }
             
-            return matchStatus && matchShipping && matchSearch && matchPlatform && matchShop;
+            return matchStatus && matchShipping && matchCarrier && matchSearch && matchPlatform && matchShop;
         });
-    }, [statusFilter, shippingFilter, platformFilter, shopFilter, orderSearch]);
+    }, [statusFilter, shippingFilter, carrierFilter, platformFilter, shopFilter, orderSearch, updateTrigger]);
 
     const handleSelectAll = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.checked) {
@@ -1474,6 +1477,24 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
         setSelectedOrders(prev => 
             prev.includes(id) ? prev.filter(oId => oId !== id) : [...prev, id]
         );
+    };
+
+    const handleBatchAction = (action: 'printed' | 'packed' | 'cancelled') => {
+        MOCK_ORDERS.forEach(o => {
+            if (selectedOrders.includes(o.id)) {
+                if (action === 'cancelled') {
+                    o.status = 'cancelled';
+                } else if (action === 'packed') {
+                    o.subStatus = 'packed';
+                    o.status = 'shipping'; // Once packed, typically marked as shipping/packed
+                } else if (action === 'printed') {
+                    o.subStatus = 'printed';
+                }
+            }
+        });
+        setSelectedOrders([]);
+        setShowBatchModal(false);
+        forceUpdate();
     };
 
     return (
@@ -1499,8 +1520,16 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
                             placeholder="Mã đơn, MVĐ..."
                             value={orderSearch}
                             onChange={(e) => setOrderSearch(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all outline-none"
+                            className="w-full bg-slate-50 border border-slate-200 rounded-xl py-2 pl-10 pr-9 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all outline-none"
                         />
+                        {orderSearch && (
+                             <button
+                                 onClick={() => setOrderSearch('')}
+                                 className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 focus:outline-none bg-slate-200 hover:bg-slate-300 rounded-full"
+                             >
+                                 <X size={12} />
+                             </button>
+                        )}
                     </div>
                     <button 
                         onClick={() => setShippingFilter(shippingFilter === 'Hỏa tốc' ? 'all' : 'Hỏa tốc')}
@@ -1520,11 +1549,14 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
                             className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
                         />
                         <label htmlFor="selectAll" className="text-xs font-bold text-slate-700 uppercase mt-0.5">
-                            {filteredOrders.length > 0 && selectedOrders.length === filteredOrders.length ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                            {selectedOrders.length > 0 ? `Đã chọn: ${selectedOrders.length}` : 'Chọn tất cả'}
                         </label>
                     </div>
                     {selectedOrders.length > 0 && (
-                        <button className="text-sm font-bold bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-sm shadow-indigo-200 active:scale-95 transition-transform flex items-center gap-2">
+                        <button 
+                            onClick={() => setShowBatchModal(true)}
+                            className="text-sm font-bold bg-indigo-600 text-white px-4 py-2 rounded-lg shadow-sm shadow-indigo-200 active:scale-95 transition-transform flex items-center gap-2"
+                        >
                             <Package size={16} />
                             Xử lý hàng loạt ({selectedOrders.length})
                         </button>
@@ -1558,6 +1590,21 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
                                      Hỏa tốc
                                  </span>
                              )}
+                             {(order.status === 'cancelled') ? (
+                                <span className="bg-slate-100 text-slate-600 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 whitespace-nowrap">Đã hủy</span>
+                             ) : (order.subStatus === 'packed') ? (
+                                <span className="bg-purple-50 text-purple-600 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 whitespace-nowrap">Đã đóng gói</span>
+                             ) : (order.subStatus === 'printed') ? (
+                                <span className="bg-blue-50 text-blue-600 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 whitespace-nowrap">Đã in</span>
+                             ) : (order.status === 'pending') ? (
+                                <span className="bg-yellow-50 text-yellow-600 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 whitespace-nowrap">Chờ xác nhận</span>
+                             ) : (order.status === 'processing') ? (
+                                <span className="bg-orange-50 text-orange-600 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 whitespace-nowrap">Chờ lấy hàng</span>
+                             ) : (order.status === 'shipping') ? (
+                                <span className="bg-indigo-50 text-indigo-600 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 whitespace-nowrap">Đang giao</span>
+                             ) : (order.status === 'delivered') ? (
+                                <span className="bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded text-[10px] font-bold uppercase shrink-0 whitespace-nowrap">Hoàn thành</span>
+                             ) : null}
                          </div>
                          <div className="text-xs text-slate-500 truncate shrink-0 ml-2 font-medium">#{order.id.slice(0, 15)}</div>
                      </div>
@@ -1679,24 +1726,27 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
                      <div>
                         <h4 className="font-semibold text-slate-700 mb-3 text-sm">Trạng thái đơn hàng</h4>
                         <div className="flex flex-wrap gap-2">
-                           {['all', 'pending', 'processing', 'shipping', 'delivered', 'cancelled'].map((status) => (
+                           {['all', 'pending', 'processing', 'shipping', 'delivered', 'cancelled'].map((status) => {
+                              const count = status === 'all' ? MOCK_ORDERS.length : MOCK_ORDERS.filter(o => o.status === status).length;
+                              return (
                               <button 
                                  key={status}
                                  onClick={() => { setStatusFilter(status); setOrderFilter(status); }}
-                                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
+                                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border flex items-center justify-center ${
                                     statusFilter === status 
                                     ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
                                     : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
                                  }`}
                               >
                                  {status === 'all' ? 'Tất cả' : status === 'pending' ? 'Chờ xác nhận' : status === 'processing' ? 'Chờ lấy' : status === 'shipping' ? 'Đang giao' : status === 'delivered' ? 'Hoàn thành' : 'Đã hủy'}
+                                 <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[10px] ${statusFilter === status ? 'bg-indigo-100 text-indigo-700' : 'bg-slate-100 text-slate-500'}`}>{count}</span>
                               </button>
-                           ))}
+                           )})}
                         </div>
                      </div>
 
                      <div>
-                        <h4 className="font-semibold text-slate-700 mb-3 text-sm">Đơn vị vận chuyển</h4>
+                        <h4 className="font-semibold text-slate-700 mb-3 text-sm">Hình thức vận chuyển</h4>
                         <div className="flex flex-wrap gap-2">
                            {['all', 'Nhanh', 'Hỏa tốc', 'Trong ngày'].map((method) => (
                               <button 
@@ -1709,6 +1759,25 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
                                  }`}
                               >
                                  {method === 'all' ? 'Tất cả' : method}
+                              </button>
+                           ))}
+                        </div>
+                     </div>
+
+                     <div>
+                        <h4 className="font-semibold text-slate-700 mb-3 text-sm">Đơn vị vận chuyển</h4>
+                        <div className="flex flex-wrap gap-2">
+                           {['all', 'Giao Hàng Nhanh', 'J&T Express', 'GrabExpress', 'Ahamove'].map((carrier) => (
+                              <button 
+                                 key={carrier}
+                                 onClick={() => setCarrierFilter(carrier)}
+                                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors border ${
+                                    carrierFilter === carrier 
+                                    ? 'bg-indigo-50 border-indigo-200 text-indigo-700' 
+                                    : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                                 }`}
+                              >
+                                 {carrier === 'all' ? 'Tất cả' : carrier}
                               </button>
                            ))}
                         </div>
@@ -1846,6 +1915,38 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
                         Tạo đơn ngay
                     </button>
                 </div>
+            </div>
+         )}
+
+         {/* Batch Modal */}
+         {showBatchModal && (
+            <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex flex-col justify-end animate-fade-in" onClick={() => setShowBatchModal(false)}>
+               <div className="bg-white rounded-t-2xl p-6" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                     <h3 className="font-bold text-lg text-slate-800">Xử lý {selectedOrders.length} đơn hàng</h3>
+                     <button onClick={() => setShowBatchModal(false)} className="text-slate-400 p-1 bg-slate-100 rounded-full hover:bg-slate-200"><X size={20}/></button>
+                  </div>
+                  <div className="space-y-3">
+                     <button 
+                        onClick={() => handleBatchAction('printed')}
+                        className="w-full py-3.5 bg-blue-50 text-blue-700 font-bold rounded-xl flex items-center justify-center gap-2 border border-blue-100 active:scale-95 transition-transform"
+                     >
+                        <FileText size={20} /> Đánh dấu Đã in
+                     </button>
+                     <button 
+                        onClick={() => handleBatchAction('packed')}
+                        className="w-full py-3.5 bg-purple-50 text-purple-700 font-bold rounded-xl flex items-center justify-center gap-2 border border-purple-100 active:scale-95 transition-transform"
+                     >
+                        <Package size={20} /> Đánh dấu Đã đóng gói
+                     </button>
+                     <button 
+                        onClick={() => handleBatchAction('cancelled')}
+                        className="w-full py-3.5 bg-red-50 text-red-700 font-bold rounded-xl flex items-center justify-center gap-2 border border-red-100 active:scale-95 transition-transform"
+                     >
+                        <PackageX size={20} /> Hủy đơn hàng
+                     </button>
+                  </div>
+               </div>
             </div>
          )}
       </div>
