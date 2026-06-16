@@ -32,10 +32,20 @@ const LOGOS: Record<string, string> = {
 const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop }) => {
   const [activeTab, setActiveTab] = useState<'home' | 'orders' | 'products' | 'chat' | 'menu' | 'inventory' | 'invoices' | 'reports'>('home');
   const [showNotifications, setShowNotifications] = useState(false);
+  const [newOrderNotification, setNewOrderNotification] = useState<{type: 'normal' | 'express', amount: string} | null>(null);
   const [showScanner, setShowScanner] = useState(false);
   
   // Shared state for Orders View filter
   const [orderFilter, setOrderFilter] = useState('processing');
+
+  useEffect(() => {
+    if (newOrderNotification) {
+      try {
+        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+        audio.play().catch(e => console.log('Audio error:', e));
+      } catch (err) {}
+    }
+  }, [newOrderNotification]);
 
   // Chat State
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
@@ -1420,6 +1430,26 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
             )}
          </div>
       </div>
+
+       {/* Test Notifications */}
+       <div className="px-4 py-4 mt-2">
+          <h3 className="font-bold text-slate-800 mb-3 text-sm">Giả lập thông báo có đơn mới</h3>
+          <div className="flex gap-3">
+             <button 
+                 onClick={() => setNewOrderNotification({ type: 'normal', amount: '145.254 đ' })}
+                 className="flex-1 py-3 text-sm font-bold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-xl active:scale-95 transition-transform text-center"
+             >
+                 Đơn thường
+             </button>
+             <button 
+                 onClick={() => setNewOrderNotification({ type: 'express', amount: '145.254 đ' })}
+                 className="flex-1 py-3 text-sm font-bold text-red-700 bg-red-50 border border-red-100 rounded-xl active:scale-95 transition-transform text-center"
+             >
+                 Hỏa tốc
+             </button>
+          </div>
+       </div>
+
       </div>
     </div>
   );
@@ -2264,6 +2294,30 @@ const MobileApp: React.FC<MobileAppProps> = ({ user, onLogout, onSwitchToDesktop
       
       {/* Product Form Modal */}
       {editingProduct && <ProductForm />}
+
+      {/* New Order Notification Toast */}
+      {newOrderNotification && (
+         <div className="fixed top-4 left-4 right-4 z-[100] animate-slide-down touch-none" onClick={() => setNewOrderNotification(null)}>
+            <div className={`p-4 rounded-xl shadow-xl flex gap-3 ${newOrderNotification.type === 'express' ? 'bg-red-500 text-white shadow-red-500/20' : 'bg-white border border-slate-100 shadow-slate-200/50 text-slate-800'}`}>
+                <div className={`mt-0.5 shrink-0 ${newOrderNotification.type === 'express' ? 'text-white' : 'text-indigo-600'}`}>
+                   <Package size={24} />
+                </div>
+                <div className="flex-1">
+                    <div className="flex justify-between items-start mb-0.5">
+                        <h4 className="font-bold text-base">Có đơn hàng mới</h4>
+                        <button onClick={(e) => { e.stopPropagation(); setNewOrderNotification(null); }} className="opacity-80 hover:opacity-100 p-0.5">
+                            <X size={18} />
+                        </button>
+                    </div>
+                    <p className={`text-sm leading-snug ${newOrderNotification.type === 'express' ? 'text-red-50' : 'text-slate-600'}`}>
+                        {newOrderNotification.type === 'normal' && <span><span className="font-bold text-slate-800">Đơn thường</span> - </span>}
+                        {newOrderNotification.type === 'express' && <span><span className="font-bold text-white">Đơn hỏa tốc - Giao ngay</span> - </span>}
+                        Shop Phụ kiện quà tặng có đơn hàng mới trị giá <span className="font-bold text-base">{newOrderNotification.amount}</span> tại kho 184/12 Lê Lợi. Hãy kiểm tra nhé.
+                    </p>
+                </div>
+            </div>
+         </div>
+      )}
 
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 px-6 py-2 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)] flex justify-between items-end z-50 rounded-t-2xl h-[64px]">
